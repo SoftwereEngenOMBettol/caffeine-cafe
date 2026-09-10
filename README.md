@@ -22,7 +22,7 @@ Everything is server-rendered PHP with shared `header.php` and `footer.php` incl
 
 | Home | Menu | Admin panel |
 | --- | --- | --- |
-| ![Home](docs/screenshot-home.png) | ![Menu](docs/screenshot-menu.png) | ![Admin](docs/screenshot-admin.png) |
+| ![Home](docs/screenshot-home.jpg) | ![Menu](docs/screenshot-menu.jpg) | ![Admin](docs/screenshot-admin.jpg) |
 
 An entity-relationship diagram is included as `erd.png` and viewable in-app at `erd.php`.
 
