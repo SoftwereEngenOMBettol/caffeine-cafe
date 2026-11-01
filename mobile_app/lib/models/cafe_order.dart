@@ -29,6 +29,24 @@ class CartLine {
   final int quantity;
 
   double get total => coffee.price * quantity;
+
+  Map<String, dynamic> toJson() => {
+        'coffeeId': coffee.id,
+        'quantity': quantity,
+      };
+
+  factory CartLine.fromJson(Map<String, dynamic> json) {
+    final coffeeId = json['coffeeId'] as String;
+    final coffee = coffeeMenu.firstWhere(
+      (item) => item.id == coffeeId,
+      orElse: () => throw FormatException('Unknown menu item: $coffeeId'),
+    );
+
+    return CartLine(
+      coffee: coffee,
+      quantity: (json['quantity'] as num).toInt(),
+    );
+  }
 }
 
 class CafeOrder {
@@ -95,24 +113,3 @@ class CafeOrder {
         status: status ?? this.status,
       );
 }
-
-extension CartLineJson on CartLine {
-  Map<String, dynamic> toJson() => {
-        'coffeeId': coffee.id,
-        'quantity': quantity,
-      };
-
-  static CartLine fromJson(Map<String, dynamic> json) {
-    final coffeeId = json['coffeeId'] as String;
-    final coffee = coffeeMenu.firstWhere(
-      (item) => item.id == coffeeId,
-      orElse: () => throw FormatException('Unknown menu item: $coffeeId'),
-    );
-
-    return CartLine(
-      coffee: coffee,
-      quantity: (json['quantity'] as num).toInt(),
-    );
-  }
-}
-

@@ -1795,7 +1795,8 @@ class _StaffOrderCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<OrderStatus>(
-            value: order.status,
+            key: ValueKey('${order.id}-${order.status.name}'),
+            initialValue: order.status,
             decoration: const InputDecoration(
               labelText: 'Order status',
               prefixIcon: Icon(Icons.sync_rounded),
