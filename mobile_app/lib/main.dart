@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'data/coffee_menu.dart';
 import 'models/cafe_order.dart';
 import 'models/coffee.dart';
+import 'services/order_storage.dart';
 import 'state/cart_store.dart';
+import 'state/order_store.dart';
 
 const Color _forest = Color(0xFF234A3A);
 const Color _forestDark = Color(0xFF18372B);
@@ -25,32 +27,35 @@ class CaffeineCafeApp extends StatefulWidget {
 
 class _CaffeineCafeAppState extends State<CaffeineCafeApp> {
   late final CartStore _cart;
-  final List<CafeOrder> _orders = [];
+  late final OrderStore _orderStore;
 
   @override
   void initState() {
     super.initState();
     _cart = CartStore();
+    _orderStore = OrderStore(SharedPreferencesOrderStorage());
+    _orderStore.load();
   }
 
-  void _placeOrder(String name, String phone) {
+  Future<void> _placeOrder(String name, String phone) async {
     if (_cart.isEmpty) return;
     final now = DateTime.now();
     final order = CafeOrder(
-      id: 'CC-${now.millisecondsSinceEpoch.toString().substring(7)}',
+      id: 'CC-${now.millisecondsSinceEpoch}',
       customerName: name,
       phone: phone,
       lines: List<CartLine>.unmodifiable(_cart.lines),
       total: _cart.subtotal,
       createdAt: now,
     );
-    setState(() => _orders.insert(0, order));
+    await _orderStore.addOrder(order);
     _cart.clear();
   }
 
   @override
   void dispose() {
     _cart.dispose();
+    _orderStore.dispose();
     super.dispose();
   }
 
@@ -108,10 +113,20 @@ class _CaffeineCafeAppState extends State<CaffeineCafeApp> {
           ),
         ),
       ),
-      home: MainShell(
-        cart: _cart,
-        orders: _orders,
-        onPlaceOrder: _placeOrder,
+      home: AnimatedBuilder(
+        animation: _orderStore,
+        builder: (context, child) {
+          if (!_orderStore.isLoaded) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          return MainShell(
+            cart: _cart,
+            orderStore: _orderStore,
+            onPlaceOrder: _placeOrder,
+          );
+        },
       ),
     );
   }
@@ -120,14 +135,14 @@ class _CaffeineCafeAppState extends State<CaffeineCafeApp> {
 class MainShell extends StatefulWidget {
   const MainShell({
     required this.cart,
-    required this.orders,
+    required this.orderStore,
     required this.onPlaceOrder,
     super.key,
   });
 
   final CartStore cart;
-  final List<CafeOrder> orders;
-  final void Function(String name, String phone) onPlaceOrder;
+  final OrderStore orderStore;
+  final Future<void> Function(String name, String phone) onPlaceOrder;
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -150,13 +165,14 @@ class _MainShellState extends State<MainShell> {
       ),
       CartScreen(
         cart: widget.cart,
-        onPlaceOrder: (name, phone) {
-          widget.onPlaceOrder(name, phone);
+        onPlaceOrder: (name, phone) async {
+          await widget.onPlaceOrder(name, phone);
+          if (!mounted) return;
           setState(() => _selectedIndex = 3);
         },
       ),
-      OrdersScreen(orders: widget.orders),
-      const ProfileScreen(),
+      OrdersScreen(orderStore: widget.orderStore),
+      ProfileScreen(orderStore: widget.orderStore),
     ];
 
     return Scaffold(
@@ -884,7 +900,7 @@ class CartScreen extends StatelessWidget {
   });
 
   final CartStore cart;
-  final void Function(String name, String phone) onPlaceOrder;
+  final Future<void> Function(String name, String phone) onPlaceOrder;
 
   @override
   Widget build(BuildContext context) {
@@ -1005,15 +1021,26 @@ class CartScreen extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) => CheckoutSheet(
-        onSubmit: (name, phone) {
+        onSubmit: (name, phone) async {
           Navigator.pop(sheetContext);
-          onPlaceOrder(name, phone);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Order placed! You can track it in Orders.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          try {
+            await onPlaceOrder(name, phone);
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Order saved! You can track it in Orders.'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          } catch (_) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Could not save your order. Please try again.'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
         },
       ),
     );
@@ -1139,7 +1166,7 @@ class _QuantityButton extends StatelessWidget {
 class CheckoutSheet extends StatefulWidget {
   const CheckoutSheet({required this.onSubmit, super.key});
 
-  final void Function(String name, String phone) onSubmit;
+  final Future<void> Function(String name, String phone) onSubmit;
 
   @override
   State<CheckoutSheet> createState() => _CheckoutSheetState();
@@ -1226,9 +1253,9 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (!_formKey.currentState!.validate()) return;
-                      widget.onSubmit(
+                      await widget.onSubmit(
                         _nameController.text.trim(),
                         _phoneController.text.trim(),
                       );
@@ -1253,46 +1280,53 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
 }
 
 class OrdersScreen extends StatelessWidget {
-  const OrdersScreen({required this.orders, super.key});
+  const OrdersScreen({required this.orderStore, super.key});
 
-  final List<CafeOrder> orders;
+  final OrderStore orderStore;
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 25, 20, 17),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('GOOD THINGS IN PROGRESS', style: _eyebrowStyle),
-                const SizedBox(height: 5),
-                Text(
-                  'Your orders',
-                  style: Theme.of(context).textTheme.headlineMedium,
+      child: AnimatedBuilder(
+        animation: orderStore,
+        builder: (context, child) {
+          final orders = orderStore.orders;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 25, 20, 17),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('GOOD THINGS IN PROGRESS', style: _eyebrowStyle),
+                    const SizedBox(height: 5),
+                    Text(
+                      'Your orders',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: orders.isEmpty
-                ? const _EmptyState(
-                    icon: Icons.receipt_long_outlined,
-                    title: 'No orders yet',
-                    message: 'Your placed orders will appear here.',
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                    itemCount: orders.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 13),
-                    itemBuilder: (context, index) =>
-                        _OrderCard(order: orders[index]),
-                  ),
-          ),
-        ],
+              ),
+              Expanded(
+                child: orders.isEmpty
+                    ? const _EmptyState(
+                        icon: Icons.receipt_long_outlined,
+                        title: 'No orders yet',
+                        message: 'Your placed orders will appear here.',
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                        itemCount: orders.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 13),
+                        itemBuilder: (context, index) =>
+                            _OrderCard(order: orders[index]),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1411,7 +1445,9 @@ class _OrderCard extends StatelessWidget {
 }
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({required this.orderStore, super.key});
+
+  final OrderStore orderStore;
 
   @override
   Widget build(BuildContext context) {
@@ -1481,6 +1517,41 @@ class ProfileScreen extends StatelessWidget {
               title: 'Made with care',
               subtitle: 'A small coffee shop project built with Flutter.',
             ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        RestaurantDashboardScreen(orderStore: orderStore),
+                  ),
+                ),
+                icon: const Icon(Icons.storefront_outlined),
+                label: const Text('Open staff dashboard'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _forest,
+                  side: BorderSide(color: _forest.withValues(alpha: 0.2)),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Center(
+              child: Text(
+                'STAFF DASHBOARD IS A LOCAL DEMO — NO LOGIN',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _muted,
+                  fontSize: 9,
+                  letterSpacing: 0.7,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
             const SizedBox(height: 18),
             const Center(
               child: Text(
@@ -1495,6 +1566,252 @@ class ProfileScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class RestaurantDashboardScreen extends StatelessWidget {
+  const RestaurantDashboardScreen({required this.orderStore, super.key});
+
+  final OrderStore orderStore;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Staff dashboard'),
+        backgroundColor: _cream,
+      ),
+      body: SafeArea(
+        child: AnimatedBuilder(
+          animation: orderStore,
+          builder: (context, child) {
+            final orders = orderStore.orders;
+            final completed = orders
+                .where((order) => order.status == OrderStatus.completed)
+                .length;
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+              children: [
+                const Text('RESTAURANT OVERVIEW', style: _eyebrowStyle),
+                const SizedBox(height: 6),
+                Text(
+                  'Today at a glance',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DashboardMetric(
+                        label: 'Total orders',
+                        value: '${orders.length}',
+                        icon: Icons.receipt_long_outlined,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: _DashboardMetric(
+                        label: 'In progress',
+                        value: '${orderStore.activeOrderCount}',
+                        icon: Icons.timelapse_rounded,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 11),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DashboardMetric(
+                        label: 'Completed',
+                        value: '$completed',
+                        icon: Icons.check_circle_outline_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: _DashboardMetric(
+                        label: 'Order value',
+                        value: formatOmr(orderStore.totalOrderValue),
+                        icon: Icons.payments_outlined,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 26),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Incoming orders',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    Text(
+                      '${orders.length} total',
+                      style: const TextStyle(color: _muted, fontSize: 11),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 13),
+                if (orders.isEmpty)
+                  const _EmptyState(
+                    icon: Icons.inbox_outlined,
+                    title: 'No incoming orders',
+                    message: 'New pickup orders will appear here.',
+                  )
+                else
+                  ...orders.map(
+                    (order) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _StaffOrderCard(
+                        order: order,
+                        onStatusChanged: (status) async {
+                          if (status == null) return;
+                          try {
+                            await orderStore.updateStatus(order.id, status);
+                          } catch (_) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Could not save the order status.'),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardMetric extends StatelessWidget {
+  const _DashboardMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(17),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: _forest, size: 20),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _ink,
+              fontWeight: FontWeight.w900,
+              fontSize: 17,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(label, style: const TextStyle(color: _muted, fontSize: 10)),
+        ],
+      ),
+    );
+  }
+}
+
+class _StaffOrderCard extends StatelessWidget {
+  const _StaffOrderCard({
+    required this.order,
+    required this.onStatusChanged,
+  });
+
+  final CafeOrder order;
+  final ValueChanged<OrderStatus?> onStatusChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  order.id,
+                  style: const TextStyle(
+                    color: _ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              Text(
+                formatOmr(order.total),
+                style: const TextStyle(
+                  color: _forest,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${order.customerName} · ${order.phone}',
+            style: const TextStyle(color: _muted, fontSize: 11),
+          ),
+          const SizedBox(height: 8),
+          ...order.lines.map(
+            (line) => Padding(
+              padding: const EdgeInsets.only(bottom: 3),
+              child: Text(
+                '${line.quantity} × ${line.coffee.name}',
+                style: const TextStyle(color: _ink, fontSize: 11),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<OrderStatus>(
+            value: order.status,
+            decoration: const InputDecoration(
+              labelText: 'Order status',
+              prefixIcon: Icon(Icons.sync_rounded),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            items: OrderStatus.values
+                .map(
+                  (status) => DropdownMenuItem<OrderStatus>(
+                    value: status,
+                    child: Text(status.label),
+                  ),
+                )
+                .toList(),
+            onChanged: onStatusChanged,
+          ),
+        ],
       ),
     );
   }

@@ -11,6 +11,8 @@ A polished coffee-shop ordering app built with **Flutter and Dart**. This mobile
 - Increase/decrease quantities, remove items and calculate the subtotal
 - Place a pickup order with basic customer details
 - Review locally placed orders and their current status
+- Save orders and staff status changes on the device between app launches
+- Open a restaurant staff dashboard with order counts, total order value and status management
 - Responsive Material 3 interface with empty states and image fallbacks
 
 ## Tech stack
@@ -20,8 +22,9 @@ A polished coffee-shop ordering app built with **Flutter and Dart**. This mobile
 - Material 3
 - ChangeNotifier for lightweight cart state management
 - Flutter unit tests
+- SharedPreferences for device-local order persistence
 
-The app intentionally starts without Firebase or a paid backend. Menu data is local to the app, and cart/order data remains in memory while the app is running. Checkout is a demonstration pickup flow: it does **not** process payments or write orders to the original PHP/MySQL database.
+The app intentionally starts without Firebase or a paid backend. Menu data and the cart are local to the app. Orders and staff status changes are persisted on the current device using SharedPreferences, so they survive app restarts on that device. This is not cloud synchronization: other phones and the existing PHP/MySQL website cannot see these orders. Checkout is a demonstration pickup flow and does **not** process payments.
 
 ## Requirements
 
@@ -71,8 +74,8 @@ The repository-level GitHub Actions workflow at .github/workflows/flutter-mobile
 ## Next engineering steps
 
 1. Add Firebase or Supabase authentication and persistent order storage.
-2. Connect the mobile client to a secured restaurant API.
-3. Add a staff dashboard to update order states.
+2. Add staff authentication and role-based access before exposing the dashboard to real restaurant employees.
+3. Connect customer and staff apps to a secured shared restaurant API so multiple devices see the same orders.
 4. Integrate a payment provider before accepting online payments.
 
 ## Screenshots
