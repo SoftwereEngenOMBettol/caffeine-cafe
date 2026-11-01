@@ -100,7 +100,7 @@ class _CaffeineCafeAppState extends State<CaffeineCafeApp> {
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: _ink.withOpacity(0.06)),
+            borderSide: BorderSide(color: _ink.withValues(alpha: 0.06)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
@@ -167,7 +167,7 @@ class _MainShellState extends State<MainShell> {
         onDestinationSelected: (index) =>
             setState(() => _selectedIndex = index),
         backgroundColor: Colors.white,
-        indicatorColor: _forest.withOpacity(0.10),
+        indicatorColor: _forest.withValues(alpha: 0.10),
         destinations: [
           const NavigationDestination(
             icon: Icon(Icons.home_outlined),
@@ -309,7 +309,7 @@ class HomeScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(17),
-                  border: Border.all(color: _ink.withOpacity(0.05)),
+                  border: Border.all(color: _ink.withValues(alpha: 0.05)),
                 ),
                 child: const Row(
                   children: [
@@ -396,7 +396,7 @@ class _OfferBanner extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.10),
+                  color: Colors.white.withValues(alpha: 0.10),
                   width: 25,
                 ),
               ),
@@ -699,7 +699,7 @@ class CoffeeTile extends StatelessWidget {
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.94),
+                            color: Colors.white.withValues(alpha: 0.94),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Text(
@@ -798,7 +798,7 @@ void showCoffeeDetails(
                 width: 42,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: _muted.withOpacity(0.25),
+                  color: _muted.withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(20),
                 ),
               ),
@@ -941,7 +941,7 @@ class CartScreen extends StatelessWidget {
                       const BorderRadius.vertical(top: Radius.circular(24)),
                   boxShadow: [
                     BoxShadow(
-                      color: _ink.withOpacity(0.05),
+                      color: _ink.withValues(alpha: 0.05),
                       blurRadius: 18,
                       offset: const Offset(0, -5),
                     ),
@@ -1182,7 +1182,7 @@ class _CheckoutSheetState extends State<CheckoutSheet> {
                     width: 42,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: _muted.withOpacity(0.25),
+                      color: _muted.withValues(alpha: 0.25),
                       borderRadius: BorderRadius.circular(20),
                     ),
                   ),
