@@ -71,11 +71,15 @@ The repository-level GitHub Actions workflow at .github/workflows/flutter-mobile
     ├── analysis_options.yaml
     └── pubspec.yaml
 
+## Shared backend foundation
+
+A Supabase schema with customer/staff access policies and server-side price calculation is provided in [backend/supabase/](../backend/supabase/). See its README before applying it. The Flutter app is **not connected to Supabase yet**; current orders remain device-local.
+
 ## Next engineering steps
 
-1. Add Firebase or Supabase authentication and persistent order storage.
+1. Connect Supabase Auth and the menu/order APIs using a project URL and anon/publishable key.
 2. Add staff authentication and role-based access before exposing the dashboard to real restaurant employees.
-3. Connect customer and staff apps to a secured shared restaurant API so multiple devices see the same orders.
+3. Add Realtime updates so customer and staff devices see the same orders.
 4. Integrate a payment provider before accepting online payments.
 
 ## Screenshots

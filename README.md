@@ -250,3 +250,8 @@ A separate Flutter/Dart mobile client now lives in [mobile_app/](mobile_app/). I
 The mobile client is intentionally independent of the original PHP/MySQL website. Its menu is local and its cart/orders are in-memory demo data; it does not process payments or write to the existing database.
 
 To set up the Flutter platform folders and run it, see [mobile_app/README.md](mobile_app/README.md).
+
+
+### Restaurant backend foundation
+
+A Supabase schema draft is available in [backend/supabase/](backend/supabase/). It defines customer/staff roles, menu items, orders, order-item snapshots, row-level security policies, and a server-side order-placement function that calculates prices. The Flutter app is not connected to Supabase yet; see the backend README for setup and the remaining integration work.
