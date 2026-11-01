@@ -52,12 +52,11 @@ To run on Chrome (after generating the web runner):
     flutter analyze
     flutter test
 
-A GitHub Actions workflow runs formatting, analysis and tests whenever files under mobile_app/ change.
+The repository-level GitHub Actions workflow at .github/workflows/flutter-mobile.yml runs formatting, analysis and tests whenever files under mobile_app/ change.
 
 ## Project structure
 
     mobile_app/
-    ├── .github/workflows/flutter.yml
     ├── lib/
     │   ├── data/coffee_menu.dart
     │   ├── models/
