@@ -239,3 +239,14 @@ MIT
 ## Author
 
 **SoftwereEngenOMBettol** — [GitHub profile](https://github.com/SoftwereEngenOMBettol)
+
+
+---
+
+## Flutter mobile application
+
+A separate Flutter/Dart mobile client now lives in [mobile_app/](mobile_app/). It adds a modern coffee menu, product details, search and category filters, cart quantity controls, pickup checkout, and local order tracking.
+
+The mobile client is intentionally independent of the original PHP/MySQL website. Its menu is local and its cart/orders are in-memory demo data; it does not process payments or write to the existing database.
+
+To set up the Flutter platform folders and run it, see [mobile_app/README.md](mobile_app/README.md).
